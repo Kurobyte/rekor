@@ -1,0 +1,5 @@
+[alias]
+"b" = "build"
+"br" = "build -r"
+"b:win" = "build --target x86_64-pc-windows-gnu"
+"br:win" = "build --target x86_64-pc-windows-gnu -r"
