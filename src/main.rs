@@ -13,13 +13,13 @@ use std::sync::mpsc::channel;
 use chrono::{Local, Duration};
 use clap::Parser;
 use regex::Regex;
+use which::which;
 use ctrlc;
 
 // own modules
 use cli::CliArgs;
 use git::git_utils;
 use track::tfile;
-
 
 fn diff_time(diff: Duration) -> String {
     format!("{0:02}:{1:02}:{2:02}", diff.num_hours(), diff.num_minutes() % 60, diff.num_seconds() % 60)
@@ -32,7 +32,7 @@ fn parse_cli_args() -> VecDeque<String> {
     args
 }
 
-fn execute_subcommand(cmd: String, args: VecDeque<String>) -> Result<Child, Error> {
+fn execute_subcommand(cmd: &String, args: VecDeque<String>) -> Result<Child, Error> {
     Command::new(cmd).args(args).env("PATH", env::var("PATH").unwrap()).spawn()
 }
 
@@ -69,6 +69,16 @@ fn main() {
         desc_branch = clarg.msg;
         wr_out = true;
     } else {
+        let cmd_path_res = which(&cmd);
+        let cmd_path;
+
+        if cmd_path_res.is_err() {
+            println!("Commanda no trobada");
+            return;
+        }
+        
+        cmd_path = cmd_path_res.unwrap();
+
         if git_utils::is_git_dir() {
             project = git_utils::get_project_name();
             desc_branch = git_utils::get_branch_name();
@@ -77,9 +87,15 @@ fn main() {
             desc_branch= "NO_BRANCH".to_owned();
         }
 
-        let exec_result = execute_subcommand(cmd, args);
+        let start = Local::now();
+        let exec_result = execute_subcommand(&cmd_path.as_os_str().to_str().unwrap().to_string(), args);
         if exec_result.is_err() {
-            // dbg!(env::var("PATH"));
+            // dbg!(env::var("PATH").unwrap());
+            // dbg!(find_it("mitra"));
+            // let mut wh_args: VecDeque<String> = VecDeque::new();
+            // wh_args.push_front(&cmd);
+            // dbg!(execute_subcommand(&"where".to_string(), wh_args));
+            // dbg!(which(&cmd));
             dbg!(exec_result.err());
             return; // Bloquejem la execució
         }
