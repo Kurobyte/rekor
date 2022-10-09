@@ -42,6 +42,8 @@ fn main() {
     let (tx, rx) = channel();
     let txc = tx.clone();
     let mut args: VecDeque<String> = parse_cli_args();
+    #[allow(unused_assignments)]
+    let mut wr_out: bool = false;
 
     let _ = ctrlc::set_handler(move || {
         let _ = txc.send(false);
@@ -52,15 +54,21 @@ fn main() {
         return;
     }
     let cmd = args.pop_front().unwrap();
+    let start = Local::now();
+    let diff;
+    let project;
+    let desc_branch;
 
     if reg.is_match(cmd.as_str()) {
-        println!("Comanda especial.");
-        println!("{:?}", args);
+        // println!("Comanda especial.");
+        // println!("{:?}", args);
         clarg = CliArgs::parse();
-        println!("{:?}", clarg);
+
+        diff = (start + Duration::minutes(clarg.time.unwrap_or(10))) - start;
+        project = clarg.project;
+        desc_branch = clarg.msg;
+        wr_out = true;
     } else {
-        let project;
-        let desc_branch;
         if git_utils::is_git_dir() {
             project = git_utils::get_project_name();
             desc_branch = git_utils::get_branch_name();
@@ -69,7 +77,6 @@ fn main() {
             desc_branch= "NO_BRANCH".to_owned();
         }
 
-        let start = Local::now();
         let exec_result = execute_subcommand(cmd, args);
         if exec_result.is_err() {
             // dbg!(env::var("PATH"));
@@ -77,6 +84,7 @@ fn main() {
             return; // Bloquejem la execució
         }
 
+        wr_out = true;
         let mut child = exec_result.unwrap();
         let res_child = child.wait();
         match res_child {
@@ -85,14 +93,11 @@ fn main() {
         }
 
         let _rx_data = rx.recv().unwrap();
-        // if rx_data {
-        //     println!("Execució OK");
-        // } else {
-        //     println!("Execució forçada");
-        // }
-        
         let end = Local::now();
-        let diff = end - start;
+        diff = end - start;
+    }
+
+    if wr_out {
         //csv:
         //project;mes;dia;hora_inici;min_inici;duracio;descripcio
         tfile::write_raw(
